@@ -1,0 +1,900 @@
+---
+title: "Dummy data production"
+output: html_document
+date: "2024-08-11"
+---
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Produce 100 ethnicity records based on: https://pubmed.ncbi.nlm.nih.gov/16959017/#
+
+
+```{r}
+set.seed(0)
+
+library(lubridate)
+library(sqldf)
+library(dplyr)
+library(tidyr)
+
+sample_size <- 1000
+
+ethnicities <- c("Maori","Non-Maori, Non-Pasific","Pasific","Other")
+
+ethnicities_ratio <- c(0.3,0.5,0.24,0.04)
+
+ethnicity_values <- sample(ethnicities,sample_size,replace = TRUE,prob = ethnicities_ratio)
+
+
+#Generates a vec of ethnicities
+head(ethnicity_values)
+
+
+```
+
+## Produce 100 patientIds randomly
+```{r}
+set.seed(0)
+patient_ids <- replicate(sample_size, paste0(sample(0:9, 6, replace = TRUE), collapse = ""))
+#Generates a vec of patiendIds
+head(patient_ids)
+```
+
+
+## Activity codes based on PRIMHD Reporting End User Guide and calculating waiting times. Assigns them to records randomly
+
+```{r}
+set.seed(0)
+activity_codes <- c(
+  "T02", "T03", "T04", "T05", "T11", "T12", "T13", "T14", "T16", "T20", 
+  "T21", "T25", "T26", "T27", "T28", "T29", "T30", "TCR", "T01", "T07", 
+  "T08", "T09", "T10", "T15", "T17", "T18", "T19", "T22", "T23", "T24", 
+  "T32", "T34", "T35", "T36", "T38", "T39", "T40", "T41", "T42", "T43", 
+  "T44", "T45", "T37", "T33"
+)
+
+out_of_scope  <- c("T08", "T24", "T33", "T35", "T37", "T43", "T44", "T45", "T52")
+
+activity_types <- sample(activity_codes, size = sample_size, replace = TRUE)
+
+
+
+```
+
+## Establish referral types
+
+
+```{r}
+set.seed(0)
+#possible referral sources
+ReferredBy <- c(
+  "AC", "AD", "AE", "CA", "CM", "CO", "CR", "CS", "DH", "ES", 
+  "FO", "GP", "JU", "KM", "KP", "NA", "NP", "NR", "OL", "OP", 
+  "OT", "PD", "PH", "PI", "PO", "PP", "RE", "SE", "SR", "SW", 
+  "UN", "VS"
+)
+
+# generates list of referall sources
+referred_by_values <- sample(ReferredBy, size = sample_size, replace = TRUE)
+
+
+
+
+## Code here unused, sets "referred to" values, but not sure where to implement this
+ReferredTo <- c("PI", "PO", "PP", "RE", "SE", "SR", "SW", "UN", "VS","DD", "DG", "DK", "DM", "DR", "DS", "DT")
+
+out_of_scope_referrals <- c("DD", "DG", "DK", "DM", "DR", "DS", "DT")
+
+#Sets probability of in-scope referrals higher than out of scope
+Weights <- c(rep(1, 9), rep(0.1, 7))
+
+NormalizedProbabilities <- Weights / sum(Weights)
+
+# Sample 100 codes with the specified probabilities
+ReferredToVec <- sample(ReferredTo, size = sample_size, replace = TRUE, prob = NormalizedProbabilities)
+
+
+```
+
+
+
+## Set first referall date
+```{r}
+set.seed(0)
+
+#set 3 month reporting period
+
+reporting_start <- as.Date("2024-01-01")
+reporting_end <- as.Date("2024-04-01")
+
+#produce a vector of possible dates within the reporting period
+
+dates <- seq.Date(reporting_start,reporting_end, by = "day")
+
+
+#sets first referral date at random within reporting period
+
+first_referrals <- sample(dates,sample_size,replace = TRUE)
+
+```
+
+## Set second referral date (if applicable)
+
+
+```{r}
+set.seed(0)
+#Sets some second referral dates as NA (no second referral has occurred)
+second_referrals <- rep(NA,sample_size)
+
+# generates a vector of random numbers of days between 1st and second referral
+time_to_second_referral <- sample(0:60, length(second_referrals), replace = TRUE)
+
+
+#assuming a 20% chance of second referral occurring, then only includes that referral if its within reporting scope
+
+for (i in 1:length(first_referrals)){
+  
+  #Checks outcome of a 2/8 coin flip
+  
+  NACurr <- sample(c(0,1),1, replace = FALSE, prob = c(0.2,0.8))
+  
+  #if coin flip is succesful, check if second second referral date falls within reporting scope
+  
+  if(NACurr==0 & time_to_second_referral[i]+first_referrals[i] < reporting_end){
+    
+    #Appends second referral date to  second_referrals vector
+    
+    second_referrals[i]=as.Date(first_referrals[i]+time_to_second_referral[i])
+  }
+}
+
+
+#Sets a referred by type for each second referral
+referred_by_values_2 <- rep(NA,sample_size)
+referred_by_values_2[!is.na(second_referrals)]<-sample(activity_codes,1)
+head(referred_by_values_2)
+
+
+second_referrals <- as.Date(second_referrals)
+
+```
+
+
+
+## Set first activity date
+
+```{r}
+set.seed(1)
+#Sets activity dates as NA (no activity has occurred yet)
+first_activity_date <- rep(NA,sample_size)
+
+# generates a vector of days between 1st referral and 1st activity
+time_to_first_activity <- sample(0:60, length(first_referrals), replace = TRUE)
+
+
+#Assuming a 90% chance of getting an in scope activity, then only includes activity if its within reporting scope
+
+for (i in 1:length(first_referrals)){
+  
+  #Checks outcome of a 9/1 coin flip
+  
+  NACurr <- sample(c(0,1),1,replace=FALSE,prob=c(0.9,0.1))
+  
+  # if coin flip is successful, check if an activity is achieved within the reporting period 
+  
+  if(NACurr==0 & time_to_first_activity[i]+first_referrals[i]<reporting_end){
+    
+    #Append this activity's date to first_activity_date vector
+    
+    first_activity_date[i]=as.Date(first_referrals[i]+time_to_first_activity[i])
+  }
+}
+
+first_activity_date <- as.Date(first_activity_date)
+
+#randomly Assigns an activity for every non-NA First Activity Date
+activity_values <-rep(NA,sample_size)
+activity_values[!is.na(first_activity_date)] <- activity_types[!is.na(first_activity_date)]
+
+```
+
+
+
+## JB: Add reaminign attributes
+```{r}
+set.seed(1)
+
+
+
+# NHI Number
+
+# Generate random alphabetic characters
+random_letters <- replicate(1000, paste(sample(LETTERS, 3, replace = TRUE), collapse = ""))
+
+# Generate random numeric characters
+random_numbers <- sprintf("%04d", sample(0:9999, 1000, replace = TRUE))
+
+# Combine letters and numbers to create the final vector
+NHI_Number_Values <- paste0(random_letters, random_numbers)
+
+
+# Org Names
+Organisation_name <- c(
+  "Auckland DHB",
+"Bay of Plenty DHB",
+"Canterbury DHB",
+"Capital and Coast DHB",
+"Counties Manukau DHB",
+"Hawkes Bay DHB",
+"Hutt Valley DHB",
+"Lakes DHB",
+"MidCentral DHB",
+"Nelson Marlborough DHB",
+"Northland DHB",
+"South Canterbury DHB",
+"Southern DHB",
+"Tairāwhiti DHB",
+"Taranaki DHB",
+"Waikato DHB",
+"Wairarapa DHB",
+"Waitematā DHB",
+"West Coast DHB",
+"Whanganui DHB"
+)
+
+# generates list of values
+Organisation_name_values <- sample(Organisation_name, size = sample_size, replace = TRUE)
+
+
+# Funding DHB
+
+Funding_DHB_values <- sub(" DHB$", "", Organisation_name_values)
+
+
+
+# 
+
+# Referral ID (of index referral)
+
+Referral_ID_Index_Referral <- replicate(sample_size, paste0(sample(0:9, 6, replace = TRUE), collapse = ""))
+
+# Referral ID (of referral that contains inscope activity))
+
+Referral_ID_Index_Activity <- replicate(sample_size, paste0(sample(0:9, 6, replace = TRUE), collapse = ""))
+
+# Activity ID (of first in-scope activty))
+
+Actvity_ID_Index_Referral <- replicate(sample_size, paste0(sample(0:9, 6, replace = TRUE), collapse = ""))
+
+Actvity_ID_Index_Referral
+
+# Referral End Reason
+
+Referral_End_Reason <- c(
+"Deceased",
+"Discharge of tangata whaiora/consumer to NGOs that provide MHA services",
+"Discharge to other service within same organisation",
+"Ended routinely",
+"Gone No Address or Lost to follow-up.",
+"Involuntary Discharge",
+"Provider Discharge",
+"Referral declined - Inability to provide services requested.",
+"Referral declined - Other services more appropriate.",
+"Routine discharge - no direct contact required",
+"Self discharge from hospital",
+"Tangata whaiora/consumer did not attend following the referral.",
+"Transfer to another MHA service within same organisation"
+)
+
+# generates list of values
+Referral_End_Reason_values <- sample(Referral_End_Reason, size = sample_size, replace = TRUE)
+
+
+# Referral End Code (Of Index Referral)
+
+Referral_End_Code <- c("DD",
+"DK",
+"DT",
+"DR",
+"DF",
+"ID",
+"PD",
+"RI",
+"RO",
+"DZ",
+"DS",
+"DM",
+"DY")
+
+# generates list of values
+Referral_End_Code_values <- sample(Referral_End_Code, size = sample_size, replace = TRUE)
+
+
+# Referral end code (of referral that contains in-scope activity)
+
+# Recode the values
+Referral_End_Code_Activity_values <- recode(Referral_End_Code_values,
+  "Deceased" = "DD",
+  "Discharge of tangata whaiora/consumer to NGOs that provide MHA services" = "DK",
+  "Discharge to other service within same organisation" = "DT",
+  "Ended routinely" = "DR",
+  "Gone No Address or Lost to follow-up." = "DF",
+  "Involuntary Discharge" = "ID",
+  "Provider Discharge" = "PD",
+  "Referral declined - Inability to provide services requested." = "RI",
+  "Referral declined - Other services more appropriate." = "RO",
+  "Routine discharge - no direct contact required" = "DZ",
+  "Self discharge from hospital" = "DS",
+  "Tangata whaiora/consumer did not attend following the referral." = "DM",
+  "Transfer to another MHA service within same organisation" = "DY"
+)
+
+
+# Referral From Names
+
+Referral_From_Names <- c("Child adolescent and family/whanau mental health services",
+"Community Support Service",
+"Corrections",
+"Court Liaison",
+"Day hospital",
+"Education Sector",
+"Forensic Community",
+"General practitioner",
+"Hospital referral (non-psychiatric)",
+"Justice",
+"Kaupapa Māori",
+"Mental health community skills enhancement programme",
+"Mental health residential",
+"Needs assessment and co-ordination service",
+"No further referral",
+"Older persons community mental health service",
+"Other",
+"Pacific peoples",
+"Paediatrics",
+"Police",
+"Private practitioner",
+"Psychiatric inpatient",
+"Psychiatric outpatients",
+"Public health",
+"Self or relative referral",
+"Social Welfare",
+"Unknown",
+"Vocational Service")
+
+
+Referral_From_Names_values <- sample(Referral_From_Names, size = sample_size, replace = TRUE)
+
+
+# Team Type
+
+Team_Type <- c("Community Team",
+"Early Intervention Team",
+"Eating Disorder Team",
+"Forensic Team",
+"Inpatient Team",
+"Intellectual Disability Dual Diagnosis Team",
+"Maternal Mental Health Team",
+"Needs Assessment and Service Coordination Team",
+"Residential/Accommodation Team",
+"Specialist Psychotherapy Team",
+"Specialty Team")
+
+Team_Type_Values <- sample(Team_Type, size = sample_size, replace = TRUE)
+
+
+
+
+# Team Type
+
+Team_Code_values <-  recode(Team_Type_Values,
+"Community Team" = "CT",
+"Early Intervention Team" = "EI",
+"Eating Disorder Team" = "ED",
+"Forensic Team" = "FT",
+"Inpatient Team" = "IT",
+"Intellectual Disability Dual Diagnosis Team" = "ID",
+"Maternal Mental Health Team" = "MM",
+"Needs Assessment and Service Coordination Team" = "NS",
+"Residential/Accommodation Team" = "RA",
+"Specialist Psychotherapy Team" = "SP",
+"Specialty Team" = "ST",
+)
+
+
+
+# Sex
+
+Sex_List <-c("M", "F", "Other")
+
+Sex_List_Values <- sample(Sex_List, size = sample_size, replace = TRUE)
+
+# Ages
+
+Age_Values <- sample(15:89, 100, replace = TRUE)
+
+
+# Age Groups
+
+Age_Group_Values <- cut(Age_Values, 
+                  breaks = seq(15, 90, by = 5), 
+                  right = FALSE, 
+                  labels = paste(seq(15, 85, by = 5), seq(19, 89, by = 5), sep = "-"))
+
+
+
+# ExtractedDate (Use Referral minus one week)
+
+Extracted_Date_Values <- first_referrals - 7
+
+
+# Dombile DHB vlaues (Copy from Organisation Name)
+
+Dombile_DHB_values <- Organisation_name_values
+
+```
+
+
+
+```{r}
+
+
+
+# Check second referrals and first_activity are missing some values
+sum(!is.na(second_referrals))
+sum(!is.na(first_activity_date))
+
+# Construct dataframe
+df_data <- data.frame(
+  NHI = NHI_Number_Values,
+  Organisation_Name = Organisation_name_values,
+  Funding_DHB = Funding_DHB_values,
+  Referral_First_ID = Referral_ID_Index_Referral,
+  Referral_First_Start = as.Date(first_referrals),
+  Referral_First_Referred_By = referred_by_values,
+  Referral_First_Team_Type = Team_Type_Values,
+  Referral_First_Team_Code = Team_Code_values,
+  Referral_First_End_Code = Referral_End_Code_values,
+  Referral_Second_ID = Referral_ID_Index_Activity,
+  Referral_Second_Start = as.Date(second_referrals),
+  Referral_Second_End_Reason = Referral_End_Reason_values,
+  Referral_Second_End_Code = Referral_End_Code_Activity_values,
+  Activity_ID = Actvity_ID_Index_Referral,
+  Activity_Start_Date = as.Date(first_activity_date),
+  Activity_Code = activity_values,
+  Age = Age_Values,
+  Age_Group = Age_Group_Values,
+  Domicile_DHB = Organisation_name_values,  # Adjust if needed
+  Sex = Sex_List_Values,
+  Ethnicity = ethnicity_values,
+  Extracted_Date = as.Date(Extracted_Date_Values)
+)
+
+# Set Referral_Second_ID to NA where Referral_Second_Start is NA
+df_data$Referral_Second_ID <- ifelse(is.na(df_data$Referral_Second_Start), NA, df_data$Referral_Second_ID)
+
+
+# Set Referral_Second_ID to NA where Referral_Second_Start is NA
+df_data$Activity_ID <- ifelse(is.na(df_data$Activity_Start_Date), NA, df_data$Activity_ID)
+
+
+# Set Referral_Second_ID to NA where Referral_Second_Start is NA
+df_data$Referral_Second_End_Reason <- ifelse(is.na(df_data$Referral_Second_Start), NA, df_data$Referral_Second_End_Reason)
+
+
+
+# Set Referral_Second_ID to NA where Referral_Second_Start is NA
+df_data$Referral_Second_End_Code <- ifelse(is.na(df_data$Referral_Second_Start), NA, df_data$Referral_Second_End_Code)
+
+
+
+write.csv(df_data,file = "df_data.csv", row.names=FALSE)
+
+```
+
+
+
+
+```{r}
+# Test - Scheduled Load of Data in SCD2 Format
+
+df_data_SCD_2 <- df_data
+
+# Ensure df_data has SCD2 columns
+df_data_SCD_2$Start_Date <- Sys.Date()
+df_data_SCD_2$End_Date <- as.Date("9999-12-31")
+df_data_SCD_2$Current_Flag <- TRUE
+
+
+# Update an age to test SCD2 load
+
+# Update the first value in the 'Age' column
+
+new_data <- df_data_SCD_2
+
+new_data$Activity_Code[1] <- 'T16'
+
+
+# Create 'exisitng_data' dataframe
+
+existing_data <- df_data_SCD_2
+existing_data$Start_Date <- Sys.Date() - 1
+existing_data$End_Date <- as.Date("9999-12-31")
+existing_data$Current_Flag <- TRUE
+
+
+# SCD2 Function
+
+# Function to update data in SCD2 format
+update_scd2 <- function(existing_data, new_data) {
+  # Set end date to max date if current
+  updated_existing <- sqldf("
+    SELECT e.NHI, e.Organisation_Name, e.Funding_DHB, e.Referral_First_ID,
+           e.Referral_First_Start, e.Referral_First_Referred_By, e.Referral_First_Team_Type,
+           e.Referral_First_Team_Code, e.Referral_First_End_Code, e.Referral_Second_ID,
+           e.Referral_Second_Start, e.Referral_Second_End_Reason, e.Referral_Second_End_Code,
+           e.Activity_ID, e.Activity_Start_Date, e.Activity_Code, e.Age, e.Age_Group,
+           e.Domicile_DHB, e.Sex, e.Ethnicity, e.Extracted_Date, e.Start_Date,
+           e.End_Date, e.Current_Flag
+    FROM existing_data e
+    LEFT JOIN new_data n ON e.NHI = n.NHI
+    WHERE e.Current_Flag = TRUE
+      AND (n.NHI IS NULL OR 
+           e.Organisation_Name != n.Organisation_Name OR 
+           e.Funding_DHB != n.Funding_DHB OR
+           e.Referral_First_ID != n.Referral_First_ID OR
+           e.Referral_First_Start != n.Referral_First_Start OR
+           e.Referral_First_Referred_By != n.Referral_First_Referred_By OR
+           e.Referral_First_Team_Type != n.Referral_First_Team_Type OR
+           e.Referral_First_Team_Code != n.Referral_First_Team_Code OR
+           e.Referral_First_End_Code != n.Referral_First_End_Code OR
+           e.Referral_Second_ID != n.Referral_Second_ID OR
+           e.Referral_Second_Start != n.Referral_Second_Start OR
+           e.Referral_Second_End_Reason != n.Referral_Second_End_Reason OR
+           e.Referral_Second_End_Code != n.Referral_Second_End_Code OR
+           e.Activity_ID != n.Activity_ID OR
+           e.Activity_Start_Date != n.Activity_Start_Date OR
+           e.Activity_Code != n.Activity_Code OR
+           e.Age != n.Age OR
+           e.Age_Group != n.Age_Group OR
+           e.Domicile_DHB != n.Domicile_DHB OR
+           e.Sex != n.Sex OR
+           e.Ethnicity != n.Ethnicity OR
+           e.Extracted_Date != n.Extracted_Date
+      )
+  ")
+  
+  # Set end date and flag for closed records
+  if (nrow(updated_existing) > 0) {
+    updated_existing$End_Date <- as.Date(Sys.Date() - 1)
+    updated_existing$Current_Flag <- FALSE
+  }
+  
+  # Add new records, set end date to NA, and flag as current
+  new_records <- sqldf("
+    SELECT n.NHI, n.Organisation_Name, n.Funding_DHB, n.Referral_First_ID,
+           n.Referral_First_Start, n.Referral_First_Referred_By, n.Referral_First_Team_Type,
+           n.Referral_First_Team_Code, n.Referral_First_End_Code, n.Referral_Second_ID,
+           n.Referral_Second_Start, n.Referral_Second_End_Reason, n.Referral_Second_End_Code,
+           n.Activity_ID, n.Activity_Start_Date, n.Activity_Code, n.Age, n.Age_Group,
+           n.Domicile_DHB, n.Sex, n.Ethnicity, n.Extracted_Date, n.Start_Date,
+           n.End_Date, n.Current_Flag
+    FROM new_data n
+    LEFT JOIN existing_data e ON n.NHI = e.NHI
+    WHERE e.NHI IS NULL
+       OR (e.Organisation_Name != n.Organisation_Name OR
+           e.Funding_DHB != n.Funding_DHB OR
+           e.Referral_First_ID != n.Referral_First_ID OR
+           e.Referral_First_Start != n.Referral_First_Start OR
+           e.Referral_First_Referred_By != n.Referral_First_Referred_By OR
+           e.Referral_First_Team_Type != n.Referral_First_Team_Type OR
+           e.Referral_First_Team_Code != n.Referral_First_Team_Code OR
+           e.Referral_First_End_Code != n.Referral_First_End_Code OR
+           e.Referral_Second_ID != n.Referral_Second_ID OR
+           e.Referral_Second_Start != n.Referral_Second_Start OR
+           e.Referral_Second_End_Reason != n.Referral_Second_End_Reason OR
+           e.Referral_Second_End_Code != n.Referral_Second_End_Code OR
+           e.Activity_ID != n.Activity_ID OR
+           e.Activity_Start_Date != n.Activity_Start_Date OR
+           e.Activity_Code != n.Activity_Code OR
+           e.Age != n.Age OR
+           e.Age_Group != n.Age_Group OR
+           e.Domicile_DHB != n.Domicile_DHB OR
+           e.Sex != n.Sex OR
+           e.Ethnicity != n.Ethnicity OR
+           e.Extracted_Date != n.Extracted_Date)
+  ")
+
+  # Retreive unchanged records
+  unchanged_existing <- sqldf("
+  SELECT e.*
+  FROM existing_data e
+  LEFT JOIN new_data n ON e.NHI = n.NHI
+  WHERE n.NHI IS NULL
+     OR (COALESCE(e.Organisation_Name, '') = COALESCE(n.Organisation_Name, '') AND
+         COALESCE(e.Funding_DHB, '') = COALESCE(n.Funding_DHB, '') AND
+         COALESCE(e.Referral_First_ID, '') = COALESCE(n.Referral_First_ID, '') AND
+         COALESCE(e.Referral_First_Start, '') = COALESCE(n.Referral_First_Start, '') AND
+         COALESCE(e.Referral_First_Referred_By, '') = COALESCE(n.Referral_First_Referred_By, '') AND
+         COALESCE(e.Referral_First_Team_Type, '') = COALESCE(n.Referral_First_Team_Type, '') AND
+         COALESCE(e.Referral_First_Team_Code, '') = COALESCE(n.Referral_First_Team_Code, '') AND
+         COALESCE(e.Referral_First_End_Code, '') = COALESCE(n.Referral_First_End_Code, '') AND
+         COALESCE(e.Referral_Second_ID, '') = COALESCE(n.Referral_Second_ID, '') AND
+         COALESCE(e.Referral_Second_Start, '') = COALESCE(n.Referral_Second_Start, '') AND
+         COALESCE(e.Referral_Second_End_Reason, '') = COALESCE(n.Referral_Second_End_Reason, '') AND
+         COALESCE(e.Referral_Second_End_Code, '') = COALESCE(n.Referral_Second_End_Code, '') AND
+         COALESCE(e.Activity_ID, '') = COALESCE(n.Activity_ID, '') AND
+         COALESCE(e.Activity_Start_Date, '') = COALESCE(n.Activity_Start_Date, '') AND
+         COALESCE(e.Activity_Code, '') = COALESCE(n.Activity_Code, '') AND
+         COALESCE(e.Age, '') = COALESCE(n.Age, '') AND
+         COALESCE(e.Age_Group, '') = COALESCE(n.Age_Group, '') AND
+         COALESCE(e.Domicile_DHB, '') = COALESCE(n.Domicile_DHB, '') AND
+         COALESCE(e.Sex, '') = COALESCE(n.Sex, '') AND
+         COALESCE(e.Ethnicity, '') = COALESCE(n.Ethnicity, '') AND
+         COALESCE(e.Extracted_Date, '') = COALESCE(n.Extracted_Date, '')
+  )")
+  
+  
+  # Combine updated and new records
+  combined_data <- rbind(updated_existing, new_records, unchanged_existing)
+
+
+  # Return dataframe
+  
+  return(combined_data)
+}
+
+
+
+# Output: SCD2 Table
+df_data_updated <- update_scd2(existing_data, new_data)
+
+
+# Recalculate Calculated Fields (DO LATER)
+
+
+
+write.csv(df_data_updated,file = "df_data1.csv", row.names=FALSE)
+
+
+
+```
+
+
+
+
+
+```{r}
+
+df = df_data_updated
+
+# - People with Referrals by Funding_DHB
+
+People_with_Referrals_by_Funding_DHB <- df %>%
+  group_by(Funding_DHB) %>%
+  summarize(Unique_NHI_Count = n_distinct(NHI_Number_Values))
+
+# - People with Referrals by Referral_First_Team_Type
+
+getwd()
+
+People_with_Referrals_by_Referral_First_Team_Type <- df %>%
+  group_by(Referral_First_Team_Type) %>%
+  summarize(Unique_NHI_Count = n_distinct(NHI_Number_Values))
+
+# - People with Referrals by Activity_Code
+
+People_with_Referrals_by_Activity_Code <- df %>%
+  group_by(Activity_Code) %>%
+  summarize(Unique_NHI_Count = n_distinct(NHI_Number_Values))
+
+# - People with Referrals by Domicile_DHB
+
+People_with_Referrals_by_Domicile_DHB <- df %>%
+  group_by(Domicile_DHB) %>%
+  summarize(Unique_NHI_Count = n_distinct(NHI_Number_Values))
+
+# - People with Referrals by Age Group
+
+People_with_Referrals_by_Age_Group <- df %>%
+  group_by(Age_Group) %>%
+  summarize(Unique_NHI_Count = n_distinct(NHI_Number_Values))
+
+# - People with Referrals by Sex
+
+People_with_Referrals_by_Sex <- df %>%
+  group_by(Sex) %>%
+  summarize(Unique_NHI_Count = n_distinct(NHI_Number_Values))
+
+# - People with Referrals by Ethnicity
+
+People_with_Referrals_by_Ethnicity <- df %>%
+  group_by(Ethnicity) %>%
+  summarize(Unique_NHI_Count = n_distinct(NHI_Number_Values))
+
+
+### Referrals Long
+
+# Reshape first referral data
+df_first <- df %>%
+  select(NHI,
+         Organisation_Name,
+         Funding_DHB,
+         Referral_First_ID,
+         Referral_First_Start,
+         Referral_First_Referred_By,
+         Referral_First_Team_Type,
+         Referral_First_Team_Code,
+         Referral_First_End_Code,
+         Activity_ID,	
+         Activity_Start_Date,	
+         Activity_Code,	
+         Age,	
+         Age_Group,	
+         Domicile_DHB,	
+         Sex,	
+         Ethnicity,	
+         Extracted_Date) %>%
+  rename(ID = Referral_First_ID,
+         Start = Referral_First_Start,
+         Referred_By = Referral_First_Referred_By,
+         Team_Type = Referral_First_Team_Type,
+         Team_Code = Referral_First_Team_Code,
+         End_Code = Referral_First_End_Code) %>%
+  mutate(Referral_Type = "First")
+
+# Reshape second referral data
+df_second <- df %>%
+  select(NHI,
+         Organisation_Name,
+         Funding_DHB,
+         Referral_Second_ID,
+         Referral_Second_Start,
+         Referral_Second_End_Reason,
+         Referral_Second_End_Code,
+         Activity_ID,	
+         Activity_Start_Date,	
+         Activity_Code,	
+         Age,	
+         Age_Group,	
+         Domicile_DHB,	
+         Sex,	
+         Ethnicity,	
+         Extracted_Date) %>%
+  rename(ID = Referral_Second_ID,
+         Start = Referral_Second_Start,
+         End_Reason = Referral_Second_End_Reason,
+         End_Code = Referral_Second_End_Code) %>%
+  mutate(Referral_Type = "Second")
+
+# Combine the two dataframes
+df_combined <- bind_rows(df_first, df_second)
+
+# Ensure all columns are present and order them
+df_long <- df_combined %>%
+  select(NHI,	Organisation_Name,	Funding_DHB, Referral_Type, ID, Start, Referred_By, Team_Type, Team_Code, End_Reason, End_Code, Activity_ID,	Activity_Start_Date,	Activity_Code,	Age,	Age_Group,	Domicile_DHB,	Sex,	Ethnicity,	Extracted_Date)
+
+
+
+# - Total Referrals by Funding_DHB
+
+Total_Referrals_by_Funding_DHB <- df_long %>%
+  group_by(Funding_DHB) %>%
+  summarize(Unique_Referral_Count = n_distinct(ID))
+
+
+
+# - Total Referrals by Activity_Code
+
+Total_Referrals_by_Activity_Code <- df_long %>%
+  group_by(Activity_Code) %>%
+  summarize(Unique_Referral_Count = n_distinct(ID))
+
+# - Total Referrals by Domicile_DHB
+
+Total_Referrals_by_Domicile_DHB <- df_long %>%
+  group_by(Domicile_DHB) %>%
+  summarize(Unique_Referral_Count = n_distinct(ID))
+
+# - Total Referrals by Age Group
+
+Total_Referrals_by_Age_Group <- df_long %>%
+  group_by(Age_Group) %>%
+  summarize(Unique_Referral_Count = n_distinct(ID))
+
+# - Total Referrals by Sex
+
+Total_Referrals_by_Sex <- df_long %>%
+  group_by(Sex) %>%
+  summarize(Unique_Referral_Count = n_distinct(ID))
+
+# - Total Referrals by Ethnicity
+
+Total_Referrals_by_Ethnicity <- df_long %>%
+  group_by(Ethnicity) %>%
+  summarize(Unique_Referral_Count = n_distinct(ID))
+
+
+
+# - Percentage of Referrals resulting in second referrals by Funding_DHB
+
+Percentage_second_referrals_by_Funding_DHB <- df %>%
+  group_by(Funding_DHB) %>%
+  summarise(
+    Total_First_Starts = n(),
+    Non_Null_Second_Starts = sum(!is.na(Referral_Second_Start)),
+    Percentage_Non_Null_Second_Starts = (Non_Null_Second_Starts / Total_First_Starts) * 100
+  )
+
+
+
+# - Percentage of Referrals resulting in second referrals by Referral_First_Team_Type
+
+Percentage_second_referrals_by_Funding_DHB <- df %>%
+  group_by(Referral_First_Team_Type) %>%
+  summarise(
+    Total_First_Starts = n(),
+    Non_Null_Second_Starts = sum(!is.na(Referral_Second_Start)),
+    Percentage_Non_Null_Second_Starts = (Non_Null_Second_Starts / Total_First_Starts) * 100
+  )
+
+
+# - Percentage of Referrals resulting in second referrals by Activity_Code
+
+Percentage_second_referrals_by_Activity_Code <- df %>%
+  group_by(Activity_Code) %>%
+  summarise(
+    Total_First_Starts = n(),
+    Non_Null_Second_Starts = sum(!is.na(Referral_Second_Start)),
+    Percentage_Non_Null_Second_Starts = (Non_Null_Second_Starts / Total_First_Starts) * 100
+  )
+
+# - Percentage of Referrals resulting in second referrals by Domicile_DHB
+
+Percentage_second_referrals_by_Domicile_DHB <- df %>%
+  group_by(Domicile_DHB) %>%
+  summarise(
+    Total_First_Starts = n(),
+    Non_Null_Second_Starts = sum(!is.na(Referral_Second_Start)),
+    Percentage_Non_Null_Second_Starts = (Non_Null_Second_Starts / Total_First_Starts) * 100
+  )
+
+
+# - Percentage of Referrals resulting in second referrals by Age Group
+
+Percentage_second_referrals_by_Age_Group <- df %>%
+  group_by(Age_Group) %>%
+  summarise(
+    Total_First_Starts = n(),
+    Non_Null_Second_Starts = sum(!is.na(Referral_Second_Start)),
+    Percentage_Non_Null_Second_Starts = (Non_Null_Second_Starts / Total_First_Starts) * 100
+  )
+
+# - Percentage of Referrals resulting in second referrals by Sex
+
+Percentage_second_referrals_by_Sex <- df %>%
+  group_by(Sex) %>%
+  summarise(
+    Total_First_Starts = n(),
+    Non_Null_Second_Starts = sum(!is.na(Referral_Second_Start)),
+    Percentage_Non_Null_Second_Starts = (Non_Null_Second_Starts / Total_First_Starts) * 100
+  )
+
+
+# - Percentage of Referrals resulting in second referrals by Ethnicity
+
+Percentage_second_referrals_by_Ethnicity <- df %>%
+  group_by(Ethnicity) %>%
+  summarise(
+    Total_First_Starts = n(),
+    Non_Null_Second_Starts = sum(!is.na(Referral_Second_Start)),
+    Percentage_Non_Null_Second_Starts = (Non_Null_Second_Starts / Total_First_Starts) * 100
+  )
+
+```
+
+
+
+
