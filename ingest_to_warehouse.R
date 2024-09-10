@@ -1,16 +1,34 @@
-install.packages("aws.s3", repos = "https://cloud.R-project.org")
 library("aws.s3")
 
 #Accessing AWS user
 #This user has been created with read/write access to a single bucket only.
 #It does not have the ability to create or delete buckets.
-bucket = "ara-poutama-data"
-put_object(
-  file = file.path(tempdir(),"df_data_scd2.csv"),
-  object = "df_data_scd2.csv",
-  bucket = bucket
-)
-file.remove(df_data_scd2.csv)
+
+
+bucket <- "ara-poutama-data"
+file_name <- "df_data_scd2.csv"
+
+# Ensure the file exists before attempting to upload
+if (file.exists(file_name)) {
+  # Upload the file to S3
+  put_object(
+    file = file_name,
+    object = file_name,
+    bucket = bucket
+  )
+  
+  # Check if the upload was successful
+  if (object_exists(object = file_name, bucket = bucket)) {
+    print(paste("File", file_name, "successfully uploaded to", bucket))
+    
+    #remove the local file
+    file.remove(file_name)
+  } else {
+    print(paste("Failed to upload", file_name, "to", bucket))
+  }
+} else {
+  print(paste("File", file_name, "not found in the current directory"))
+}
 
 
 
