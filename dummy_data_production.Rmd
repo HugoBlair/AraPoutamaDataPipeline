@@ -656,7 +656,7 @@ df_data_updated <- update_scd2(existing_data, new_data)
 
 
 
-write.csv(df_data_updated,file = "df_data1.csv", row.names=FALSE)
+write.csv(df_data_updated,file = "df_data_scd2.csv", row.names=FALSE)
 
 
 
