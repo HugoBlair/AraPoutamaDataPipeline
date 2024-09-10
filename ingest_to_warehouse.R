@@ -4,6 +4,15 @@ library("aws.s3")
 #This user has been created with read/write access to a single bucket only.
 #It does not have the ability to create or delete buckets.
 
+# Load configuration
+config <- config::get(file = "config.yml")
+
+# Set AWS credentials
+Sys.setenv(
+  "AWS_ACCESS_KEY_ID" = config$aws$AWS_ACCESS_KEY_ID,
+  "AWS_SECRET_ACCESS_KEY" = config$aws$AWS_SECRET_ACCESS_KEY,
+  "AWS_DEFAULT_REGION" = config$aws$AWS_DEFAULT_REGION
+)
 
 bucket <- "ara-poutama-data"
 file_name <- "df_data_scd2.csv"

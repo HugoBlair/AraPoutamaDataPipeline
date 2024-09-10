@@ -4,17 +4,37 @@ library(sqldf)
 library(dplyr)
 library(tidyr)
 
+# Load configuration
+config <- config::get(file = "config.yml")
+
+# Set AWS credentials
+Sys.setenv(
+  "AWS_ACCESS_KEY_ID" = config$aws$AWS_ACCESS_KEY_ID,
+  "AWS_SECRET_ACCESS_KEY" = config$aws$AWS_SECRET_ACCESS_KEY,
+  "AWS_DEFAULT_REGION" = config$aws$AWS_DEFAULT_REGION
+)
+
 #viewing stored data files
 data.table::rbindlist(get_bucket(bucket = "ara-poutama-data"))
 
-read_from_s3 <- function(filename, bucket) {
-  object <- get_object(object = filename, bucket = bucket)
-  read.csv(text = rawToChar(object))
+load_data_from_s3 <- function() {
+  bucket <- "ara-poutama-data"
+  file_name <- "df_data_scd2.csv"
+  
+
+  if (aws.s3::object_exists(object = file_name, bucket = bucket)) {
+    s3_object <- aws.s3::get_object(object = file_name, bucket = bucket)
+    raw_data <- read.csv(text = rawToChar(s3_object))
+    return(raw_data)
+  } else {
+    stop("File not found in S3 bucket")
+  }
 }
 
 # use the s3 URI
-df = s3read_using(FUN = read.csv, object = "s3://ara-poutama-data/df_data_scd2.csv")          
+#df = s3read_using(FUN = read.csv, object = "s3://ara-poutama-data/df_data_scd2.csv")   
 
+df = load_data_from_s3()
 # - People with Referrals by Funding_DHB
 
 People_with_Referrals_by_Funding_DHB <- df %>%
