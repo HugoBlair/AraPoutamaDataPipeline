@@ -6,6 +6,9 @@ library(aws.s3)
 library(yaml)
 library(rsconnect)
 
+#Access the deployed version the dashboard below:
+#https://hugoblair.shinyapps.io/arapoutamadatapipeline/
+
 # Load configuration
 config <- config::get(file = "config.yml")
 
