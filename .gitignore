@@ -2,3 +2,7 @@
 .Rhistory
 .RData
 .Ruserdata
+df_data.csv
+df_data1.csv
+rsconnect/
+config.yml
