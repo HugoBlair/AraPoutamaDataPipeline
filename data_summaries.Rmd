@@ -1,0 +1,144 @@
+---
+title: "data summaries"
+author: "Kaito Ibaraki"
+date: "2024-09-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#loads all sheets into dataframes
+
+```{r}
+
+library(readxl)
+library(dplyr)
+library(ggplot2)
+
+# Define the file path
+path <- "pp8_primhd_waittimes_20240829_JUN23MAY24 (deident).xlsx"
+
+# Read each sheet into a dataframe with the corresponding name
+DHBs_all_team_types <- read_excel(path, sheet = "table1")
+NGOs_All_team_types <- read_excel(path, sheet = "table2")
+DHB_MH_teams <- read_excel(path, sheet = "table3")
+DHB_AOD_teams <- read_excel(path, sheet = "table4")
+NGO_MH_teams <- read_excel(path, sheet = "table5")
+NGO_AOD_teams <- read_excel(path, sheet = "table6")
+Forensic_teams <- read_excel(path, sheet = "table7")
+Exceptions <- read_excel(path, sheet = "table8")
+No_contract_DHB <- read_excel(path, sheet = "table9")
+
+
+```
+
+# Creates a list of dataframes 
+
+```{r}
+
+dataframes <- list(
+  DHBs_all_team_types,
+  NGOs_All_team_types,
+  DHB_MH_teams,
+  DHB_AOD_teams,
+  NGO_MH_teams,
+  NGO_AOD_teams,
+  Forensic_teams,
+  Exceptions,
+  No_contract_DHB
+)
+
+df_names <- c("DHBs_all_team_types", "NGOs_All_team_types", "DHB_MH_teams", 
+              "DHB_AOD_teams", "NGO_MH_teams", "NGO_AOD_teams", 
+              "Forensic_teams", "Exceptions", "No_contract_DHB")
+
+
+
+```
+# summarises wait days by table
+
+```{r}
+
+mean_wait_days <- sapply(dataframes, function(df){
+  round(mean(df$WAIT_DAYS, na.rm= TRUE),2)
+})
+
+mean_summary <- data.frame(Table = df_names, Mean_WAIT_DAYS = mean_wait_days)
+
+mean_summary
+
+
+
+median_wait_days <- sapply(dataframes, function(df){
+  median(df$WAIT_DAYS, na.rm= TRUE)
+})
+
+median_summary <- data.frame(Table = df_names, median_WAIT_DAYS = median_wait_days)
+
+median_summary
+
+
+
+```
+
+#creates a table of mean wait days per organisation for each table
+
+```{r}
+
+
+mean_waits_per_organisation=list()
+
+# calculates mean wait days per organisation for each dataframe
+for (i in 1:length(dataframes)) {
+  mean_table <- dataframes[[i]] %>%
+    group_by(ORGANISATION_NAME) %>%  
+    summarise(Mean_WAIT_DAYS = mean(WAIT_DAYS, na.rm = TRUE))  
+
+  
+  mean_waits_per_organisation[[df_names[i]]] <- mean_table
+}
+
+
+calculate_waits <- function(group, measure){
+  result_list=list()
+  for (i in 1:length(dataframes)) {
+    mean_table <- dataframes[[i]] %>%
+      group_by({{group}}) %>%  
+      summarise(Mean_WAIT_DAYS = round(measure(WAIT_DAYS, na.rm = TRUE),2))  
+  result_list[[df_names[i]]] <- mean_table
+  }
+  return(result_list)
+}
+
+mean_waits_per_organisation <- calculate_waits(ORGANISATION_NAME, mean)
+median_waits_per_organisation <-calculate_waits(ORGANISATION_NAME, median)
+
+mean_waits_per_ageGroup <- calculate_waits(AGE_GROUP, mean)
+median_waits_per_ageGroup <- calculate_waits(AGE_GROUP, median)
+
+```
+
+```{r}
+
+
+ggplot(mean_waits_per_organisation[[df_names[[3]]]], aes(x = reorder(ORGANISATION_NAME, Mean_WAIT_DAYS), y = Mean_WAIT_DAYS)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  coord_flip() +  # Flip to horizontal bars
+  labs(x = "Organisation Name", y = "Mean Wait Days", title = "Mean Wait Days by Organisation") +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 8))
+```
+
+```{r}
+
+ggplot(mean_waits_per_organisation[[df_names[[1]]]], aes(x = reorder(ORGANISATION_NAME, Mean_WAIT_DAYS), y = Mean_WAIT_DAYS)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  coord_flip() +  # Flip to horizontal bars
+  labs(x = "Organisation Name", y = "Mean Wait Days", title = "Mean Wait Days by Organisation") +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 8))
+
+```
+
