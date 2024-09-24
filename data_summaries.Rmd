@@ -125,7 +125,7 @@ median_waits_per_ageGroup <- calculate_waits(AGE_GROUP, median)
 
 ggplot(mean_waits_per_organisation[[df_names[[3]]]], aes(x = reorder(ORGANISATION_NAME, Mean_WAIT_DAYS), y = Mean_WAIT_DAYS)) +
   geom_bar(stat = "identity", fill = "skyblue") +
-  coord_flip() +  # Flip to horizontal bars
+  coord_flip() + 
   labs(x = "Organisation Name", y = "Mean Wait Days", title = "Mean Wait Days by Organisation") +
   theme_minimal() +
   theme(axis.text.y = element_text(size = 8))
@@ -135,7 +135,7 @@ ggplot(mean_waits_per_organisation[[df_names[[3]]]], aes(x = reorder(ORGANISATIO
 
 ggplot(mean_waits_per_organisation[[df_names[[1]]]], aes(x = reorder(ORGANISATION_NAME, Mean_WAIT_DAYS), y = Mean_WAIT_DAYS)) +
   geom_bar(stat = "identity", fill = "skyblue") +
-  coord_flip() +  # Flip to horizontal bars
+  coord_flip() +  
   labs(x = "Organisation Name", y = "Mean Wait Days", title = "Mean Wait Days by Organisation") +
   theme_minimal() +
   theme(axis.text.y = element_text(size = 8))
