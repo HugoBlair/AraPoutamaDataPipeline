@@ -16,6 +16,8 @@ knitr::opts_chunk$set(echo = TRUE)
 library(readxl)
 library(dplyr)
 library(ggplot2)
+library(docxtractr)
+
 
 # Define the file path
 path <- "pp8_primhd_waittimes_20240829_JUN23MAY24 (deident).xlsx"
@@ -118,6 +120,10 @@ median_waits_per_organisation <-calculate_waits(ORGANISATION_NAME, median)
 mean_waits_per_ageGroup <- calculate_waits(AGE_GROUP, mean)
 median_waits_per_ageGroup <- calculate_waits(AGE_GROUP, median)
 
+
+calculate_waits(REFERRAL_FROM, mean)
+
+table(DHBs_all_team_types$REFERRAL_FROM)
 ```
 
 ```{r}
@@ -141,4 +147,91 @@ ggplot(mean_waits_per_organisation[[df_names[[1]]]], aes(x = reorder(ORGANISATIO
   theme(axis.text.y = element_text(size = 8))
 
 ```
+
+
+
+
+```{r}
+
+referralEnds=c("Not Applicable",
+               "Ended Routinely",
+               "Discharged to other service within organisation",
+               "Provider discharge",
+               "Transfer to another MHA service within same organisation","Domiciliary",
+               "self discharge",
+               "Discharge of tangata whaiora/consumer to another healthcare organisation", "Involunatry Discharge","Deceased",
+               "Gone No Address or Lost to follow-up",
+               "Discharge of tangata whaiora/consumer to NGOs that provide MHA services")
+
+referralEndsDescriptions=c("N/A",
+  "Completion of treatment/programme/goals. Use this for discharge/return to GP.",
+  "Discharge to a non-mental health and addiction service within the same organisation","Provider cannot continue to provide service eg tangata whaiora/consumer was a risk to others / did not adhere to agreed programme",
+  "Use this code for internal transfers between mental health and addiction teams","Services provided to a tangata whaiora/consumer in the tangata whaiora/consumer’s or family/whānau member’s home. ",
+  "Tangata whaiora/consumer has informed the service provider they no longer wish to receive services and discharge has resulted.",
+  "Use this code for:
+•	discharge to a non-MHA organisation 
+•	discharge from an NGO to Health NZ services (either MHA or non-MHA service)
+•	discharge from one Health NZ service to another (either MHA or non-MHA service)
+•	discharge to a private provider (not GP)
+For discharges to NGOs providing MHA services use code DK.
+For discharges to GP use code DR.
+",
+  "Use this code for:
+•	discharge to a non-MHA organisation 
+•	discharge from an NGO to Health NZ services (either MHA or non-MHA service)
+•	discharge from one Health NZ service to another (either MHA or non-MHA service)
+•	discharge to a private provider (not GP)
+For discharges to NGOs providing MHA services use code DK.
+For discharges to GP use code DR.
+",
+  "Tangata whaiora/consumer died while registered with team.","Tangata whaiora/consumer who has been receiving service is unable to be contacted and decision is made to end the referral. Providers should have a local protocol in place to determine when discharge should occur",
+  "Use this code for transitions to NGOs when the NGO will be the primary provider of that consumer’s MHA services.
+To be used for Health NZ services to NGO and also NGO to NGO transfers.
+")
+endcodes=unique(DHBs_all_team_types$REFERRAL_END_CODE)
+endcodes
+
+endcodesAllInfo=cbind(endcodes,referralEnds,referralEndsDescriptions)
+
+colnames(endcodesAllInfo) <- c("endcodes","referralEnds","referralEndsDescriptions")
+
+endcodesAllInfo
+
+```
+
+# Extracting names from codeset document
+
+```{r}
+
+
+# Read the codeset
+doc <- read_docx("HISO-10023.3-2024-PRIMHD-Code-Set-Standard.docx")
+
+
+
+# Get the number of tables
+num_tables <- docx_tbl_count(doc)
+
+#save each table to a list entry
+tables <- list()
+for (i in 1:num_tables) {
+  tables[[i]] <- docx_extract_tbl(doc, i)
+}
+
+# open a df 
+all_code_descriptions <- data.frame(Code = character(), Description = character(), 
+                        UsedForComment = character(), stringsAsFactors = FALSE)
+#save each code description to a row
+for (tbl in tables) {
+  if (all(c("Code", "Description", "Used.for.Comment") %in% colnames(tbl))) {
+    selected_tbl <- tbl %>% select(Code, Description, `Used.for.Comment`)
+    all_code_descriptions <- rbind(all_code_descriptions, selected_tbl)
+  }
+}
+
+
+
+
+```
+
 
