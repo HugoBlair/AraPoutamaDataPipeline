@@ -56,9 +56,28 @@ df_names <- c("DHBs_all_team_types", "NGOs_All_team_types", "DHB_MH_teams",
               "DHB_AOD_teams", "NGO_MH_teams", "NGO_AOD_teams", 
               "Forensic_teams", "Exceptions", "No_contract_DHB")
 
+```
 
+# Simulating ethnicities, gender field (none given in deidentified data)
+
+```{r}
+
+ethnicities <- c("Maori", "Non-Maori, Non-Pacific", "Pasific", "Other")
+ethnicitiesProbabilities <- c(0.4, 0.3, 0.2, 0.1) 
+for (i in 1:length(dataframes)) {
+  n <- nrow(dataframes[[i]])
+  dataframes[[i]]$Ethnicity <- sample(ethnicities, size = n, replace = TRUE, prob = ethnicitiesProbabilities)
+}
+
+genders <- c("Male","Female","Other")
+gendersProbabilities <- c(0.5,0.45,0.05)
+for (i in 1:length(dataframes)) {
+  n <- nrow(dataframes[[i]])
+  dataframes[[i]]$Gender <- sample(genders, size = n, replace = TRUE, prob = gendersProbabilities)
+}
 
 ```
+
 # summarises wait days by table
 
 ```{r}
