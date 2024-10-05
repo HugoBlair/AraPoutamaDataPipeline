@@ -17,6 +17,10 @@ library(readxl)
 library(dplyr)
 library(ggplot2)
 library(docxtractr)
+library(lubridate)
+library(tidyr)
+library(purrr)
+
 
 
 # Define the file path
@@ -104,122 +108,6 @@ median_summary
 
 ```
 
-#creates a table of mean wait days per organisation for each table
-
-```{r}
-
-
-mean_waits_per_organisation=list()
-
-# calculates mean wait days per organisation for each dataframe
-for (i in 1:length(dataframes)) {
-  mean_table <- dataframes[[i]] %>%
-    group_by(ORGANISATION_NAME) %>%  
-    summarise(Mean_WAIT_DAYS = mean(WAIT_DAYS, na.rm = TRUE))  
-
-  
-  mean_waits_per_organisation[[df_names[i]]] <- mean_table
-}
-
-
-calculate_waits <- function(group, measure){
-  result_list=list()
-  for (i in 1:length(dataframes)) {
-    mean_table <- dataframes[[i]] %>%
-      group_by({{group}}) %>%  
-      summarise(Mean_WAIT_DAYS = round(measure(WAIT_DAYS, na.rm = TRUE),2))  
-  result_list[[df_names[i]]] <- mean_table
-  }
-  return(result_list)
-}
-
-mean_waits_per_organisation <- calculate_waits(ORGANISATION_NAME, mean)
-median_waits_per_organisation <-calculate_waits(ORGANISATION_NAME, median)
-
-mean_waits_per_ageGroup <- calculate_waits(AGE_GROUP, mean)
-median_waits_per_ageGroup <- calculate_waits(AGE_GROUP, median)
-
-
-calculate_waits(REFERRAL_FROM, mean)
-
-table(DHBs_all_team_types$REFERRAL_FROM)
-```
-
-```{r}
-
-
-ggplot(mean_waits_per_organisation[[df_names[[3]]]], aes(x = reorder(ORGANISATION_NAME, Mean_WAIT_DAYS), y = Mean_WAIT_DAYS)) +
-  geom_bar(stat = "identity", fill = "skyblue") +
-  coord_flip() + 
-  labs(x = "Organisation Name", y = "Mean Wait Days", title = "Mean Wait Days by Organisation") +
-  theme_minimal() +
-  theme(axis.text.y = element_text(size = 8))
-```
-
-```{r}
-
-ggplot(mean_waits_per_organisation[[df_names[[1]]]], aes(x = reorder(ORGANISATION_NAME, Mean_WAIT_DAYS), y = Mean_WAIT_DAYS)) +
-  geom_bar(stat = "identity", fill = "skyblue") +
-  coord_flip() +  
-  labs(x = "Organisation Name", y = "Mean Wait Days", title = "Mean Wait Days by Organisation") +
-  theme_minimal() +
-  theme(axis.text.y = element_text(size = 8))
-
-```
-
-
-
-
-```{r}
-
-referralEnds=c("Not Applicable",
-               "Ended Routinely",
-               "Discharged to other service within organisation",
-               "Provider discharge",
-               "Transfer to another MHA service within same organisation","Domiciliary",
-               "self discharge",
-               "Discharge of tangata whaiora/consumer to another healthcare organisation", "Involunatry Discharge","Deceased",
-               "Gone No Address or Lost to follow-up",
-               "Discharge of tangata whaiora/consumer to NGOs that provide MHA services")
-
-referralEndsDescriptions=c("N/A",
-  "Completion of treatment/programme/goals. Use this for discharge/return to GP.",
-  "Discharge to a non-mental health and addiction service within the same organisation","Provider cannot continue to provide service eg tangata whaiora/consumer was a risk to others / did not adhere to agreed programme",
-  "Use this code for internal transfers between mental health and addiction teams","Services provided to a tangata whaiora/consumer in the tangata whaiora/consumer’s or family/whānau member’s home. ",
-  "Tangata whaiora/consumer has informed the service provider they no longer wish to receive services and discharge has resulted.",
-  "Use this code for:
-•	discharge to a non-MHA organisation 
-•	discharge from an NGO to Health NZ services (either MHA or non-MHA service)
-•	discharge from one Health NZ service to another (either MHA or non-MHA service)
-•	discharge to a private provider (not GP)
-For discharges to NGOs providing MHA services use code DK.
-For discharges to GP use code DR.
-",
-  "Use this code for:
-•	discharge to a non-MHA organisation 
-•	discharge from an NGO to Health NZ services (either MHA or non-MHA service)
-•	discharge from one Health NZ service to another (either MHA or non-MHA service)
-•	discharge to a private provider (not GP)
-For discharges to NGOs providing MHA services use code DK.
-For discharges to GP use code DR.
-",
-  "Tangata whaiora/consumer died while registered with team.","Tangata whaiora/consumer who has been receiving service is unable to be contacted and decision is made to end the referral. Providers should have a local protocol in place to determine when discharge should occur",
-  "Use this code for transitions to NGOs when the NGO will be the primary provider of that consumer’s MHA services.
-To be used for Health NZ services to NGO and also NGO to NGO transfers.
-")
-endcodes=unique(DHBs_all_team_types$REFERRAL_END_CODE)
-endcodes
-
-endcodesAllInfo=cbind(endcodes,referralEnds,referralEndsDescriptions)
-
-colnames(endcodesAllInfo) <- c("endcodes","referralEnds","referralEndsDescriptions")
-
-endcodesAllInfo
-
-```
-
-# Extracting names from codeset document
-
 ```{r}
 
 
@@ -253,4 +141,148 @@ for (tbl in tables) {
 
 ```
 
+# Function for mean, median per table
+
+```{r}
+
+
+mean_waits_per_organisation=list()
+
+# calculates mean wait days per organisation for each dataframe
+for (i in 1:length(dataframes)) {
+  mean_table <- dataframes[[i]] %>%
+    group_by(ORGANISATION_NAME) %>%  
+    summarise(Mean_WAIT_DAYS = mean(WAIT_DAYS, na.rm = TRUE))  
+
+  
+  mean_waits_per_organisation[[df_names[i]]] <- mean_table
+}
+
+
+calculate_waits <- function(group, measure){
+  result_list=list()
+  for (i in 1:length(dataframes)) {
+    mean_table <- dataframes[[i]] %>%
+      group_by({{group}}) %>%  
+      summarise(Mean_WAIT_DAYS = round(measure(WAIT_DAYS, na.rm = TRUE),2))  
+  result_list[[df_names[i]]] <- mean_table
+  }
+  return(result_list)
+}
+
+
+```
+
+```{r}
+
+mean_waits_per_organisation <- calculate_waits(ORGANISATION_NAME, mean)
+median_waits_per_organisation <-calculate_waits(ORGANISATION_NAME, median)
+
+mean_waits_per_ageGroup <- calculate_waits(AGE_GROUP, mean)
+median_waits_per_ageGroup <- calculate_waits(AGE_GROUP, median)
+
+
+mean_waits_per_RefferalFrom <-calculate_waits(REFERRAL_FROM, mean)
+median_waits_per_RefferalFrom <-calculate_waits(REFERRAL_FROM, median)
+
+mean_waits_per_ethnicity <-calculate_waits(Ethnicity, mean)
+median_waits_per_ethnicity <- calculate_waits(Ethnicity, median)
+
+mean_waits_per_Gender <-calculate_waits(Gender, mean)
+median_waits_per_Gender <- calculate_waits(Gender, median)
+
+
+
+
+table(DHBs_all_team_types$REFERRAL_FROM)
+```
+
+```{r}
+
+
+ggplot(mean_waits_per_organisation[[df_names[[3]]]], aes(x = reorder(ORGANISATION_NAME, Mean_WAIT_DAYS), y = Mean_WAIT_DAYS)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  coord_flip() + 
+  labs(x = "Organisation Name", y = "Mean Wait Days", title = "Mean Wait Days by Organisation") +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 8))
+```
+
+```{r}
+
+ggplot(mean_waits_per_organisation[[df_names[[1]]]], aes(x = reorder(ORGANISATION_NAME, Mean_WAIT_DAYS), y = Mean_WAIT_DAYS)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  coord_flip() +  
+  labs(x = "Organisation Name", y = "Mean Wait Days", title = "Mean Wait Days by Organisation") +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 8))
+
+```
+
+
+
+
+```{r}
+
+combinedlist = bind_rows(dataframes, .id= "source_table")
+
+is.null(combinedlist)
+
+distinct_rows = combinedlist%>%
+  select(-source_table)%>%
+  distinct()
+
+distinct_rows
+
+```
+
+```{r}
+# - People with Referrals by TEAM_TYPE_CODE
+
+People_with_Referrals_by_TEAM_TYPE_CODE <- distinct_rows %>%
+  group_by(TEAM_TYPE_CODE) %>%
+  summarize(Unique_Referral_ID_Count = n_distinct(REFERRAL_ID))
+
+# - People with Referrals by REFERRAL_FROM
+
+People_with_Referrals_by_Referral_From <- distinct_rows %>%
+  group_by(REFERRAL_FROM) %>%
+  summarize(Unique_Referral_ID_Count = n_distinct(REFERRAL_ID))
+
+# - People with Referrals by FUNDING_DHB
+
+People_with_Referrals_by_Funding_DHB <- distinct_rows %>%
+  group_by(FUNDING_DHB) %>%
+  summarize(Unique_Referral_ID_Count = n_distinct(REFERRAL_ID))
+
+# - People with Referrals by Age Group
+
+People_with_Referrals_by_Age_Group <- distinct_rows %>%
+  group_by(AGE_GROUP) %>%
+  summarize(Unique_Referral_ID_Count = n_distinct(REFERRAL_ID))
+
+# - People with Referrals by Gender
+
+People_with_Referrals_by_Gender <- distinct_rows %>%
+  group_by(Gender) %>%
+  summarize(Unique_Referral_ID_Count = n_distinct(REFERRAL_ID))
+
+# - People with Referrals by Ethnicity
+
+People_with_Referrals_by_Ethnicity <- distinct_rows %>%
+  group_by(Ethnicity) %>%
+  summarize(Unique_Referral_ID_Count = n_distinct(REFERRAL_ID))
+
+# - People with Referrals by INSCOPE_REFERRAL_END_CODE (replaced with endcode descriptions)
+
+People_with_Referrals_by_Referral_End_Code <- distinct_rows %>%
+  group_by(INSCOPE_REFERRAL_END_CODE) %>%
+  summarize(Unique_Referral_ID_Count = n_distinct(REFERRAL_ID)) %>%
+  left_join(all_code_descriptions, by = c("INSCOPE_REFERRAL_END_CODE" = "Code")) %>%
+  select(Description, Unique_Referral_ID_Count)
+
+
+
+
+```
 
