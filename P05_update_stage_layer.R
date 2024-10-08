@@ -70,20 +70,36 @@ dataframes <- list(
   Stage_No_contract_DHB
 )
 
+dataframe_names <- c(
+  "Stage_DHBs_all_team_types",
+  "Stage_NGOs_All_team_types",
+  "Stage_DHB_MH_teams",
+  "Stage_DHB_AOD_teams",
+  "Stage_NGO_MH_teams",
+  "Stage_NGO_AOD_teams",
+  "Stage_Forensic_teams",
+  "Stage_Exceptions",
+  "Stage_No_contract_DHB"
+)
+
 
 ethnicities <- c("Maori", "Non-Maori, Non-Pacific", "Pasific", "Other")
 ethnicitiesProbabilities <- c(0.4, 0.3, 0.2, 0.1) 
-for (i in 1:length(dataframes)) {
-  n <- nrow(dataframes[[i]])
-  dataframes[[i]]$Ethnicity <- sample(ethnicities, size = n, replace = TRUE, prob = ethnicitiesProbabilities)
+for (df_name in dataframe_names) {
+  df <- get(df_name)  # Get the dataframe by name
+  n <- nrow(df)       # Get the number of rows in the dataframe
+  df$Ethnicity <- sample(ethnicities, size = n, replace = TRUE, prob = ethnicitiesProbabilities)  # Add 'Ethnicity' column
+  assign(df_name, df, envir = .GlobalEnv)  # Assign the updated dataframe back to the original name
 }
 
 
 genders <- c("Male","Female","Other")
 gendersProbabilities <- c(0.5,0.45,0.05)
-for (i in 1:length(dataframes)) {
-  n <- nrow(dataframes[[i]])
-  dataframes[[i]]$Gender <- sample(genders, size = n, replace = TRUE, prob = gendersProbabilities)
+for (df_name in dataframe_names) {
+  df <- get(df_name)  # Get the dataframe by name
+  n <- nrow(df)       # Get the number of rows in the dataframe
+  df$Gender <- sample(genders, size = n, replace = TRUE, prob = gendersProbabilities)  # Add 'Ethnicity' column
+  assign(df_name, df, envir = .GlobalEnv)  # Assign the updated dataframe back to the original name
 }
 
 
