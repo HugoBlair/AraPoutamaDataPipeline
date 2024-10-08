@@ -19,7 +19,7 @@ library(dplyr)
 library(tidyr)
 library(readxl)
 library(dplyr)
-
+library(docxtractr)
 library(purrr)
 
 
@@ -181,15 +181,18 @@ for (i in 1:num_tables) {
 }
 
 # open a df 
-all_code_descriptions <- data.frame(Code = character(), Description = character(), 
+all_code_descriptions_raw <- data.frame(Code = character(), Description = character(), 
                                     UsedForComment = character(), stringsAsFactors = FALSE)
 #save each code description to a row
 for (tbl in tables) {
   if (all(c("Code", "Description", "Used.for.Comment") %in% colnames(tbl))) {
     selected_tbl <- tbl %>% select(Code, Description, `Used.for.Comment`)
-    all_code_descriptions <- rbind(all_code_descriptions, selected_tbl)
+    all_code_descriptions_raw <- rbind(all_code_descriptions, selected_tbl)
   }
 }
+
+all_code_descriptions <- all_code_descriptions_raw %>%
+  distinct(Code, .keep_all = TRUE)
 
 
 #############################
