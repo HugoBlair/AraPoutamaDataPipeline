@@ -84,7 +84,7 @@ dataframe_names <- c(
 
 
 ethnicities <- c("Maori", "Non-Maori, Non-Pacific", "Pasific", "Other")
-ethnicitiesProbabilities <- c(0.4, 0.3, 0.2, 0.1) 
+ethnicitiesProbabilities <- c(0.2, 0.4, 0.2, 0.2) 
 for (df_name in dataframe_names) {
   df <- get(df_name)  # Get the dataframe by name
   n <- nrow(df)       # Get the number of rows in the dataframe
