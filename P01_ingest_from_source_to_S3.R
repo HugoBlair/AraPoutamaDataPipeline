@@ -1,4 +1,5 @@
 library("aws.s3")
+library(foreach)
 
 #############################################
 ### P1_ingest_from_source_to_S3.R         ###
@@ -47,8 +48,8 @@ Sys.setenv(
 )
 
 bucket <- "ara-poutama-data"
-file_name <- "df_data_scd2.csv"
-
+file_names <- c("df_data_scd2.csv","pp8_primhd_waittimes_20240829_JUN23MAY24 (deident).xlsx")
+foreach(file_name=file_names)%do%{}
 # Ensure the file exists before attempting to upload
 if (file.exists(file_name)) {
   # Upload the file to S3
@@ -63,12 +64,12 @@ if (file.exists(file_name)) {
     print(paste("File", file_name, "successfully uploaded to", bucket))
     
     #remove the local file
-    file.remove(file_name)
   } else {
     print(paste("Failed to upload", file_name, "to", bucket))
   }
 } else {
   print(paste("File", file_name, "not found in the current directory"))
+}
 }
 
 

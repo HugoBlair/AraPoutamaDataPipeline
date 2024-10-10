@@ -104,3 +104,4 @@ organisation_summary <- Waiting_Times_OBT %>%
     Median_Wait_Days = median(WAIT_DAYS, na.rm = TRUE)
   )
 
+
