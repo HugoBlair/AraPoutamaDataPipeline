@@ -164,7 +164,7 @@ add_organisation_name(NGO_tables, "Organisation_NGO_Name")
 
 
 ##############################
-### Add Meatdata           ###
+### Add Metadata           ###
 ##############################
 
 # Read the codeset
