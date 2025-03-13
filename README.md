@@ -2,6 +2,9 @@
 
 Ara Poutama presented a project to create a Data Pipeline to ingest and visualise Mental Health data from a Ministry of Health dataset called PRIMHD, specifically data relating to Waiting Times for Mental Health Services.
 
+## Access The Dashboard Here:
+https://hugoblair.shinyapps.io/arapoutamadatapipeline/
+
 ## Pipeline Specifications
 
 ### Raw Layer:
